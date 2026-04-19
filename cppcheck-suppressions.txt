@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: MIT
+//
+// False-positive unusedFunction suppressions for bc-concurrency.
+
+// --- bc-core inline helpers used by external consumers only ---
+unusedFunction:*/bc_core_math.h
+
+// --- Internal helper exposed in header for cross-.c use ---
+unusedFunction:*/bc_concurrency_context_internal.h
+
+// --- Linker wrap hooks in test files ---
+unusedFunction:*/test_bc_concurrency_errors.c
+unusedFunction:*/test_bc_concurrency_errors_v2.c
+unusedFunction:*tests/*_wrap.c
+unusedFunction:*/tests/*_wrap.c
+
+// --- Informational notes (not real defects) ---
+unmatchedSuppression
+missingIncludeSystem:*
+normalCheckLevelMaxBranches:*
+checkersReport

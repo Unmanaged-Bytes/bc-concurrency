@@ -1,0 +1,8 @@
+{
+   bc_commun_length_avx2_aligned_overread
+   Memcheck:Addr32
+   fun:_mm256_load_si256
+   fun:length_avx2
+   fun:bc_commun_length
+   ...
+}

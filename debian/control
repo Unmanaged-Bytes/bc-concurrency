@@ -1,0 +1,29 @@
+Source: libbc-concurrency
+Section: libdevel
+Priority: optional
+Maintainer: Younes Benmoussa <younes.benmoussa@pm.me>
+Build-Depends: debhelper-compat (= 13),
+               meson (>= 1.0),
+               ninja-build,
+               pkg-config,
+               libbc-core-dev (>= 1.0.0),
+               libbc-allocators-dev (>= 1.0.0),
+               libcmocka-dev
+Standards-Version: 4.6.2
+Homepage: https://unmanaged-bytes.com/
+Vcs-Git: https://github.com/Unmanaged-Bytes/bc-concurrency.git
+Vcs-Browser: https://github.com/Unmanaged-Bytes/bc-concurrency
+
+Package: libbc-concurrency-dev
+Architecture: amd64
+Multi-Arch: same
+Depends: ${misc:Depends},
+         libbc-core-dev (>= 1.0.0),
+         libbc-allocators-dev (>= 1.0.0)
+Description: bc-* ecosystem concurrency primitives (development files)
+ MPMC queue-backed worker pool with configurable worker count,
+ typed dispatch, shared cross-worker context, and signal-safe
+ shutdown coordination.
+ .
+ This package ships the static library, public headers, and
+ pkg-config descriptor required to build against bc-concurrency.
