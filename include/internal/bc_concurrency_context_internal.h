@@ -43,13 +43,10 @@ typedef struct bc_concurrency_worker {
     bc_concurrency_work_t* work;
     bool should_stop;
 
-    atomic_int work_ready;
-    char _pad_work_ready[BC_CACHE_LINE_SIZE - sizeof(atomic_int)];
-    atomic_int sleeping;
-    char _pad_sleeping[BC_CACHE_LINE_SIZE - sizeof(atomic_int)];
-
-    pthread_mutex_t done_mutex;
+    pthread_mutex_t state_mutex;
+    pthread_cond_t ready_cond;
     pthread_cond_t done_cond;
+    bool ready_flag;
     bool done_flag;
 
     void** slots;

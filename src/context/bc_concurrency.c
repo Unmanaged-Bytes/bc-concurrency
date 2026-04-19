@@ -50,35 +50,23 @@ void* bc_concurrency_worker_slot(size_t slot_index)
     return tls_worker->slots[slot_index];
 }
 
-static void bc_futex_wait(atomic_int* addr, int expected)
-{
-    (void)syscall(SYS_futex, (int*)addr, FUTEX_WAIT_PRIVATE, expected, NULL, NULL, 0);
-}
-
-static void bc_futex_wake(atomic_int* addr, int count)
-{
-    (void)syscall(SYS_futex, (int*)addr, FUTEX_WAKE_PRIVATE, count, NULL, NULL, 0);
-}
-
 void bc_concurrency_dispatch_to_worker(bc_concurrency_worker_t* worker, bc_concurrency_work_t* work)
 {
+    pthread_mutex_lock(&worker->state_mutex);
     worker->work = work;
-    pthread_mutex_lock(&worker->done_mutex);
     worker->done_flag = false;
-    pthread_mutex_unlock(&worker->done_mutex);
-    atomic_store_explicit(&worker->work_ready, 1, memory_order_seq_cst);
-    if (atomic_load_explicit(&worker->sleeping, memory_order_seq_cst)) {
-        bc_futex_wake(&worker->work_ready, 1);
-    }
+    worker->ready_flag = true;
+    pthread_cond_signal(&worker->ready_cond);
+    pthread_mutex_unlock(&worker->state_mutex);
 }
 
 void bc_concurrency_wait_for_worker(bc_concurrency_worker_t* worker)
 {
-    pthread_mutex_lock(&worker->done_mutex);
+    pthread_mutex_lock(&worker->state_mutex);
     while (!worker->done_flag) {
-        pthread_cond_wait(&worker->done_cond, &worker->done_mutex);
+        pthread_cond_wait(&worker->done_cond, &worker->state_mutex);
     }
-    pthread_mutex_unlock(&worker->done_mutex);
+    pthread_mutex_unlock(&worker->state_mutex);
 }
 
 static void* worker_thread_routine(void* arg)
@@ -92,29 +80,18 @@ static void* worker_thread_routine(void* arg)
     pthread_sigmask(SIG_BLOCK, &all_signals, NULL);
 
     for (;;) {
-        for (int s = 0; s < BC_CONCURRENCY_SPIN_COUNT; s++) {
-            if (atomic_load_explicit(&worker->work_ready, memory_order_acquire)) {
-                goto got_work;
-            }
-            bc_concurrency_platform_cpu_relax();
+        pthread_mutex_lock(&worker->state_mutex);
+        while (!worker->ready_flag && !worker->should_stop) {
+            pthread_cond_wait(&worker->ready_cond, &worker->state_mutex);
         }
-
-        atomic_store_explicit(&worker->sleeping, 1, memory_order_seq_cst);
-        if (!atomic_load_explicit(&worker->work_ready, memory_order_acquire)) {
-            bc_futex_wait(&worker->work_ready, 0);
-        }
-        atomic_store_explicit(&worker->sleeping, 0, memory_order_relaxed);
-        continue;
-
-    got_work:
         if (worker->should_stop) {
+            pthread_mutex_unlock(&worker->state_mutex);
             break;
         }
-
-        atomic_store_explicit(&worker->work_ready, 0, memory_order_relaxed);
-
+        worker->ready_flag = false;
         bc_concurrency_work_t* work = worker->work;
         worker->work = NULL;
+        pthread_mutex_unlock(&worker->state_mutex);
 
         tls_worker = worker;
         for (size_t i = 0; i < work->count; i++) {
@@ -122,10 +99,10 @@ static void* worker_thread_routine(void* arg)
         }
         tls_worker = NULL;
 
-        pthread_mutex_lock(&worker->done_mutex);
+        pthread_mutex_lock(&worker->state_mutex);
         worker->done_flag = true;
         pthread_cond_signal(&worker->done_cond);
-        pthread_mutex_unlock(&worker->done_mutex);
+        pthread_mutex_unlock(&worker->state_mutex);
     }
 
     return NULL;
@@ -149,9 +126,10 @@ static bool spawn_workers(bc_concurrency_context_t* context)
             pthread_attr_destroy(&attr);
 
             for (size_t j = 0; j < threads_started; j++) {
+                pthread_mutex_lock(&context->workers[j].state_mutex);
                 context->workers[j].should_stop = true;
-                atomic_store_explicit(&context->workers[j].work_ready, 1, memory_order_seq_cst);
-                bc_futex_wake(&context->workers[j].work_ready, 1);
+                pthread_cond_signal(&context->workers[j].ready_cond);
+                pthread_mutex_unlock(&context->workers[j].state_mutex);
             }
             for (size_t j = 0; j < threads_started; j++) {
                 (void)pthread_join(context->threads[j], NULL);
@@ -275,8 +253,10 @@ bool bc_concurrency_create(bc_allocators_context_t* memory_context, const bc_con
         context->workers[i].work = NULL;
         context->workers[i].should_stop = false;
         context->workers[i].slots = NULL;
-        pthread_mutex_init(&context->workers[i].done_mutex, NULL);
+        pthread_mutex_init(&context->workers[i].state_mutex, NULL);
+        pthread_cond_init(&context->workers[i].ready_cond, NULL);
         pthread_cond_init(&context->workers[i].done_cond, NULL);
+        context->workers[i].ready_flag = false;
         context->workers[i].done_flag = false;
 
         if (!bc_allocators_context_create(&worker_memory_config, &context->workers[i].memory)) {
@@ -290,8 +270,10 @@ bool bc_concurrency_create(bc_allocators_context_t* memory_context, const bc_con
     context->workers[thread_count].work = NULL;
     context->workers[thread_count].should_stop = false;
     context->workers[thread_count].slots = NULL;
-    pthread_mutex_init(&context->workers[thread_count].done_mutex, NULL);
+    pthread_mutex_init(&context->workers[thread_count].state_mutex, NULL);
+    pthread_cond_init(&context->workers[thread_count].ready_cond, NULL);
     pthread_cond_init(&context->workers[thread_count].done_cond, NULL);
+    context->workers[thread_count].ready_flag = false;
     context->workers[thread_count].done_flag = false;
 
     if (!bc_allocators_context_create(&worker_memory_config, &context->workers[thread_count].memory)) {
@@ -305,7 +287,8 @@ fail_workers:
     for (size_t j = 0; j < worker_memory_contexts_created; j++) {
         bc_allocators_context_destroy(context->workers[j].memory);
         pthread_cond_destroy(&context->workers[j].done_cond);
-        pthread_mutex_destroy(&context->workers[j].done_mutex);
+        pthread_cond_destroy(&context->workers[j].ready_cond);
+        pthread_mutex_destroy(&context->workers[j].state_mutex);
     }
     bc_allocators_pool_free(memory_context, context->workers);
 fail_threads:
@@ -326,9 +309,10 @@ void bc_concurrency_destroy(bc_concurrency_context_t* context)
 {
     if (context->workers_spawned) {
         for (size_t i = 0; i < context->thread_count; i++) {
+            pthread_mutex_lock(&context->workers[i].state_mutex);
             context->workers[i].should_stop = true;
-            atomic_store_explicit(&context->workers[i].work_ready, 1, memory_order_seq_cst);
-            bc_futex_wake(&context->workers[i].work_ready, 1);
+            pthread_cond_signal(&context->workers[i].ready_cond);
+            pthread_mutex_unlock(&context->workers[i].state_mutex);
         }
         for (size_t i = 0; i < context->thread_count; i++) {
             (void)pthread_join(context->threads[i], NULL);
@@ -357,7 +341,8 @@ void bc_concurrency_destroy(bc_concurrency_context_t* context)
         }
 
         pthread_cond_destroy(&worker->done_cond);
-        pthread_mutex_destroy(&worker->done_mutex);
+        pthread_cond_destroy(&worker->ready_cond);
+        pthread_mutex_destroy(&worker->state_mutex);
 
         bc_allocators_context_destroy(worker->memory);
     }
@@ -463,8 +448,8 @@ void bc_concurrency_foreach_slot(bc_concurrency_context_t* context, size_t slot_
     }
     size_t effective_count = context->thread_count + 1;
     for (size_t i = 0; i < context->thread_count; i++) {
-        pthread_mutex_lock(&context->workers[i].done_mutex);
-        pthread_mutex_unlock(&context->workers[i].done_mutex);
+        pthread_mutex_lock(&context->workers[i].state_mutex);
+        pthread_mutex_unlock(&context->workers[i].state_mutex);
     }
     for (size_t i = 0; i < effective_count; i++) {
         callback(context->workers[i].slots[slot_index], i, arg);

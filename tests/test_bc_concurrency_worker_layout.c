@@ -7,20 +7,19 @@
 
 #include "bc_concurrency_context_internal.h"
 
-static void test_work_ready_and_sleeping_on_separate_cache_lines(void** state)
+static void test_worker_struct_has_state_mutex(void** state)
 {
     (void)state;
-
-    const size_t ready_offset = offsetof(bc_concurrency_worker_t, work_ready);
-    const size_t sleeping_offset = offsetof(bc_concurrency_worker_t, sleeping);
-
-    assert_true(sleeping_offset - ready_offset >= 64);
+    bc_concurrency_worker_t worker;
+    assert_non_null(&worker.state_mutex);
+    assert_non_null(&worker.ready_cond);
+    assert_non_null(&worker.done_cond);
 }
 
 int main(void)
 {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_work_ready_and_sleeping_on_separate_cache_lines),
+        cmocka_unit_test(test_worker_struct_has_state_mutex),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
