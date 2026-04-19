@@ -8,6 +8,9 @@ unusedFunction:*/bc_core_math.h
 // --- Internal helper exposed in header for cross-.c use ---
 unusedFunction:*/bc_concurrency_context_internal.h
 
+// --- Platform primitive kept for future spin-path reintroduction ---
+unusedFunction:*/bc_concurrency_platform.c
+
 // --- Linker wrap hooks in test files ---
 unusedFunction:*/test_bc_concurrency_errors.c
 unusedFunction:*/test_bc_concurrency_errors_v2.c
