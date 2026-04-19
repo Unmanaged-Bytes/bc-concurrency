@@ -47,8 +47,10 @@ typedef struct bc_concurrency_worker {
     char _pad_work_ready[BC_CACHE_LINE_SIZE - sizeof(atomic_int)];
     atomic_int sleeping;
     char _pad_sleeping[BC_CACHE_LINE_SIZE - sizeof(atomic_int)];
-    atomic_int work_done;
-    char _pad_work_done[BC_CACHE_LINE_SIZE - sizeof(atomic_int)];
+
+    pthread_mutex_t done_mutex;
+    pthread_cond_t done_cond;
+    bool done_flag;
 
     void** slots;
 } BC_CACHE_LINE_ALIGNED bc_concurrency_worker_t;
