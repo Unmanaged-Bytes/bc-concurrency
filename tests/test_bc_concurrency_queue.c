@@ -181,7 +181,6 @@ typedef struct bc_concurrency_queue_stress_producer_arg {
     bc_concurrency_queue_t* queue;
     uint64_t producer_id;
     size_t item_count;
-    atomic_size_t* push_failures;
 } bc_concurrency_queue_stress_producer_arg_t;
 
 typedef struct bc_concurrency_queue_stress_consumer_arg {
