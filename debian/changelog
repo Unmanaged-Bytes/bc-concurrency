@@ -1,3 +1,22 @@
+libbc-concurrency (1.0.2-1) stable; urgency=medium
+
+  * Replace work_ready/work_done atomic+futex signaling with
+    pthread_mutex + two condition variables (ready_cond, done_cond)
+    sharing a single state_mutex. ThreadSanitizer on gcc 13
+    ubuntu-24.04 cannot track happens-before through raw futex
+    syscalls; pthread primitives are tsan-native. Closes the
+    remaining tsan data races in downstream consumers (bc-hash
+    walk_parallel foreach_slot reads, dispatch_batch_iteration,
+    error_collector flush).
+  * foreach_slot locks/unlocks each worker's state_mutex before
+    iterating to re-establish an acquire fence at the slot read
+    site.
+  * No measurable performance impact on bc-hash bench (13G / 724k
+    files corpus): sha256 1.85s (2.35x vs sha256sum -P16), crc32c
+    1.02s (3.98x vs cksum -P16), xxh3 1.01s (3.79x vs xxhsum -P16).
+
+ -- Younes Benmoussa <younes.benmoussa@pm.me>  Sun, 19 Apr 2026 15:00:00 +0000
+
 libbc-concurrency (1.0.1-1) stable; urgency=medium
 
   * Fix data race (tsan) on worker slot reads via foreach_slot.
