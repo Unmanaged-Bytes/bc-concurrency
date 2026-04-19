@@ -63,7 +63,7 @@ static void bc_futex_wake(atomic_int* addr, int count)
 void bc_concurrency_dispatch_to_worker(bc_concurrency_worker_t* worker, bc_concurrency_work_t* work)
 {
     worker->work = work;
-    atomic_store_explicit(&worker->work_done, 0, memory_order_relaxed);
+    atomic_store_explicit(&worker->work_done, 0, memory_order_seq_cst);
     atomic_store_explicit(&worker->work_ready, 1, memory_order_seq_cst);
     if (atomic_load_explicit(&worker->sleeping, memory_order_seq_cst)) {
         bc_futex_wake(&worker->work_ready, 1);
@@ -73,12 +73,12 @@ void bc_concurrency_dispatch_to_worker(bc_concurrency_worker_t* worker, bc_concu
 void bc_concurrency_wait_for_worker(bc_concurrency_worker_t* worker)
 {
     for (int s = 0; s < BC_CONCURRENCY_SPIN_COUNT; s++) {
-        if (atomic_load_explicit(&worker->work_done, memory_order_acquire)) {
+        if (atomic_load_explicit(&worker->work_done, memory_order_seq_cst)) {
             return;
         }
         bc_concurrency_platform_cpu_relax();
     }
-    while (!atomic_load_explicit(&worker->work_done, memory_order_acquire)) {
+    while (!atomic_load_explicit(&worker->work_done, memory_order_seq_cst)) {
         bc_futex_wait(&worker->work_done, 0);
     }
 }
@@ -124,7 +124,7 @@ static void* worker_thread_routine(void* arg)
         }
         tls_worker = NULL;
 
-        atomic_store_explicit(&worker->work_done, 1, memory_order_release);
+        atomic_store_explicit(&worker->work_done, 1, memory_order_seq_cst);
         bc_futex_wake(&worker->work_done, 1);
     }
 
@@ -452,7 +452,7 @@ void bc_concurrency_foreach_slot(bc_concurrency_context_t* context, size_t slot_
     }
     size_t effective_count = context->thread_count + 1;
     for (size_t i = 0; i < context->thread_count; i++) {
-        (void)atomic_load_explicit(&context->workers[i].work_done, memory_order_acquire);
+        (void)atomic_load_explicit(&context->workers[i].work_done, memory_order_seq_cst);
     }
     for (size_t i = 0; i < effective_count; i++) {
         callback(context->workers[i].slots[slot_index], i, arg);
