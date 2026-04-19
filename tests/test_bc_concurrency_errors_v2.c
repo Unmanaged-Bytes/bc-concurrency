@@ -266,6 +266,13 @@ static void test_dispatch_fails_on_partial_pthread_create(void** state)
     bc_concurrency_context_t* ctx = NULL;
     assert_true(bc_concurrency_create(mem, NULL, &ctx));
 
+    if (bc_concurrency_thread_count(ctx) < 2) {
+        bc_concurrency_destroy(ctx);
+        bc_allocators_context_destroy(mem);
+        skip();
+        return;
+    }
+
     bc_concurrency_submit(ctx, noop_task, NULL);
     bc_concurrency_submit(ctx, noop_task, NULL);
 
