@@ -451,6 +451,9 @@ void bc_concurrency_foreach_slot(bc_concurrency_context_t* context, size_t slot_
         return;
     }
     size_t effective_count = context->thread_count + 1;
+    for (size_t i = 0; i < context->thread_count; i++) {
+        (void)atomic_load_explicit(&context->workers[i].work_done, memory_order_acquire);
+    }
     for (size_t i = 0; i < effective_count; i++) {
         callback(context->workers[i].slots[slot_index], i, arg);
     }

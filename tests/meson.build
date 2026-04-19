@@ -6,6 +6,7 @@ simple_tests = [
     'main_participation', 'worker_layout',
     'worker_count_configurable',
     'queue',
+    'slot_sync',
 ]
 
 foreach name : simple_tests

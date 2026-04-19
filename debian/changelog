@@ -1,3 +1,13 @@
+libbc-concurrency (1.0.1-1) stable; urgency=medium
+
+  * Fix data race (tsan) on worker slot reads via foreach_slot.
+    After dispatch_and_wait, foreach_slot now re-acquires work_done
+    on each worker before reading its slot, ensuring tsan-visible
+    happens-before for callers that read worker-produced pointers
+    or buffers (e.g. bc-hash error_collector flush).
+
+ -- Younes Benmoussa <younes.benmoussa@pm.me>  Sun, 19 Apr 2026 14:00:00 +0000
+
 libbc-concurrency (1.0.0-1) stable; urgency=medium
 
   * Initial public release.
