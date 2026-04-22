@@ -1,3 +1,15 @@
+libbc-concurrency (1.1.0-1) stable; urgency=medium
+
+  * Add libFuzzer harness infrastructure under fuzzing/ with a new
+    harness for the MPMC queue (push/pop/close/is_closed/capacity
+    against fuzzer-driven op sequences). Existing dispatch harness
+    kept. Single-threaded under asan+ubsan; a dedicated TSAN race
+    harness is a follow-up.
+  * Gated by -Dfuzzing=true and -fsanitize=fuzzer when CC=clang.
+    No public API change.
+
+ -- Younes Benmoussa <younes.benmoussa@pm.me>  Wed, 22 Apr 2026 08:00:00 +0000
+
 libbc-concurrency (1.0.2-1) stable; urgency=medium
 
   * Replace work_ready/work_done atomic+futex signaling with
