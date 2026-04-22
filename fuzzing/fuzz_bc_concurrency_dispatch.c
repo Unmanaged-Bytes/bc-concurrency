@@ -60,7 +60,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     return 0;
 }
 
-#ifndef LIBFUZZER
+#ifndef BC_FUZZ_LIBFUZZER
 int main(int argc, char** argv)
 {
     if (argc < 2) {
