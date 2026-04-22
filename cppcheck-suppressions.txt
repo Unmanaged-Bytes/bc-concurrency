@@ -11,6 +11,16 @@ unusedFunction:*/bc_concurrency_context_internal.h
 // --- Platform primitive kept for future spin-path reintroduction ---
 unusedFunction:*/bc_concurrency_platform.c
 
+// --- Public API functions in bc-concurrency sources themselves ---
+// cppcheck analyses the lib in isolation via compile_commands.json
+// (lib sources only, not tests), so public functions consumed by
+// downstream tools (bc-hash, bc-seek, bc-duplicate, bc-count) or by
+// bc-runtime appear unused.
+unusedFunction:*/src/context/*.c
+unusedFunction:*/src/dispatch/*.c
+unusedFunction:*/src/queue/*.c
+unusedFunction:*/src/signal/*.c
+
 // --- Linker wrap hooks in test files ---
 unusedFunction:*/test_bc_concurrency_errors.c
 unusedFunction:*/test_bc_concurrency_errors_v2.c
