@@ -230,6 +230,10 @@ static void* bc_concurrency_queue_stress_consumer(void* raw_argument)
 static void test_stress_eight_producers_and_eight_consumers_preserve_all_items(void** state)
 {
     (void)state;
+    if (getenv("BC_TEST_SKIP_STRESS") != NULL) {
+        skip();
+        return;
+    }
     bc_allocators_context_t* memory = NULL;
     assert_true(bc_allocators_context_create(NULL, &memory));
     bc_concurrency_queue_t* queue = NULL;

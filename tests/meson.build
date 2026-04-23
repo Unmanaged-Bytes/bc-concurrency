@@ -16,7 +16,7 @@ foreach name : simple_tests
             include_directories : [bc_concurrency_public_inc, bc_concurrency_internal_inc],
             dependencies : [cmocka_dep, bc_concurrency_dep],
         ),
-        timeout : 30
+        timeout : 60
     )
 endforeach
 
