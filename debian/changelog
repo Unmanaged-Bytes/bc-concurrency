@@ -1,3 +1,13 @@
+libbc-concurrency (1.1.1-1) stable; urgency=medium
+
+  * chore(cppcheck): whitelist unusedFunction for public API in src/**.
+  * chore(debian): bump Build-Depends to libbc-core-dev (>= 1.3.0) and
+    libbc-allocators-dev (>= 1.2.0) to match current ecosystem baseline.
+  * chore(debian): mark debian/rules executable (mode 0755).
+  * No API or behaviour change.
+
+ -- Younes Benmoussa <younes.benmoussa@pm.me>  Thu, 23 Apr 2026 10:35:00 +0100
+
 libbc-concurrency (1.1.0-1) stable; urgency=medium
 
   * Add libFuzzer harness infrastructure under fuzzing/ with a new
