@@ -89,7 +89,7 @@ typedef struct bc_concurrency_for_chunk {
 
 struct bc_concurrency_signal_handler {
     bc_allocators_context_t* memory_context;
-    volatile sig_atomic_t should_stop_flag;
+    _Atomic int should_stop_flag;
     int installed_signal_numbers[BC_CONCURRENCY_SIGNAL_MAX_INSTALLED_SIGNALS];
     size_t installed_signal_count;
     struct sigaction previous_signal_actions[BC_CONCURRENCY_SIGNAL_MAX_INSTALLED_SIGNALS];

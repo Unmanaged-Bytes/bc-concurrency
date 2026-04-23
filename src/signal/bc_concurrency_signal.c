@@ -8,17 +8,20 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <time.h>
 
-static bc_concurrency_signal_handler_t* global_signal_handler_pointer = NULL;
+static _Atomic(bc_concurrency_signal_handler_t*) global_signal_handler_pointer = NULL;
 
 static void signal_callback_function(int signal_number)
 {
     BC_UNUSED(signal_number);
-    if (global_signal_handler_pointer != NULL) {
-        global_signal_handler_pointer->should_stop_flag = 1;
+    bc_concurrency_signal_handler_t* handler =
+        atomic_load_explicit(&global_signal_handler_pointer, memory_order_relaxed);
+    if (handler != NULL) {
+        atomic_store_explicit(&handler->should_stop_flag, 1, memory_order_relaxed);
     }
 }
 
@@ -32,12 +35,12 @@ bool bc_concurrency_signal_handler_create(bc_allocators_context_t* memory_contex
     }
 
     handler->memory_context = memory_context;
-    handler->should_stop_flag = 0;
+    atomic_store_explicit(&handler->should_stop_flag, 0, memory_order_relaxed);
     handler->installed_signal_count = 0;
     bc_core_zero(handler->installed_signal_numbers, sizeof(handler->installed_signal_numbers));
     bc_core_zero(handler->previous_signal_actions, sizeof(handler->previous_signal_actions));
 
-    global_signal_handler_pointer = handler;
+    atomic_store_explicit(&global_signal_handler_pointer, handler, memory_order_release);
 
     *out_signal_handler = handler;
     return true;
@@ -53,8 +56,10 @@ void bc_concurrency_signal_handler_destroy(bc_concurrency_signal_handler_t* sign
         sigaction(signal_handler->installed_signal_numbers[i], &signal_handler->previous_signal_actions[i], NULL);
     }
 
-    if (global_signal_handler_pointer == signal_handler) {
-        global_signal_handler_pointer = NULL;
+    const bc_concurrency_signal_handler_t* current =
+        atomic_load_explicit(&global_signal_handler_pointer, memory_order_acquire);
+    if (current == signal_handler) {
+        atomic_store_explicit(&global_signal_handler_pointer, NULL, memory_order_release);
     }
 
     bc_allocators_context_t* memory_context = signal_handler->memory_context;
@@ -87,7 +92,8 @@ bool bc_concurrency_signal_handler_install(bc_concurrency_signal_handler_t* sign
 
 bool bc_concurrency_signal_handler_should_stop(const bc_concurrency_signal_handler_t* signal_handler, bool* out_should_stop)
 {
-    *out_should_stop = (signal_handler->should_stop_flag != 0);
+    const int flag = atomic_load_explicit(&signal_handler->should_stop_flag, memory_order_relaxed);
+    *out_should_stop = (flag != 0);
     return true;
 }
 
@@ -118,7 +124,8 @@ bool bc_concurrency_sleep_milliseconds(size_t duration_milliseconds, const bc_co
         }
 
         if (errno == EINTR) {
-            if (signal_handler != NULL && signal_handler->should_stop_flag != 0) {
+            if (signal_handler != NULL
+                && atomic_load_explicit(&signal_handler->should_stop_flag, memory_order_relaxed) != 0) {
                 *out_was_interrupted = true;
                 return true;
             }
