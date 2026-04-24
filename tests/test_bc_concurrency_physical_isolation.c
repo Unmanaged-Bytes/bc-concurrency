@@ -42,8 +42,11 @@ static size_t logical_cpu_to_physical_core(size_t cpu)
         return cpu; /* fallback: cpu == core */
     }
     long core_id = -1;
-    (void)fscanf(f, "%ld", &core_id);
+    int rc = fscanf(f, "%ld", &core_id);
     fclose(f);
+    if (rc != 1) {
+        return cpu;
+    }
     return core_id >= 0 ? (size_t)core_id : cpu;
 }
 
