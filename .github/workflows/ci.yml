@@ -69,6 +69,8 @@ jobs:
           meson test -C build/release --print-errorlogs
 
       - name: Valgrind memcheck
+        env:
+          BC_TEST_SKIP_STRESS: "1"
         run: |
           meson setup build/memcheck --buildtype=debug -Dtests=true -Db_sanitize=none
           meson compile -C build/memcheck
