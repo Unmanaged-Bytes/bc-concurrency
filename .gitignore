@@ -5,3 +5,8 @@ build/
 .vscode/
 .idea/
 compile_commands.json
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/libbc-concurrency-dev/
+debian/libbc-concurrency-dev.substvars
