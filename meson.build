@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 
 project('bc-concurrency', 'c',
-  version : '1.1.1',
+  version : 'rolling',
   license : 'MIT',
   default_options : [
     'c_std=c11',
